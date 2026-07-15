@@ -10,6 +10,7 @@ interface DataRepository {
     suspend fun addTask(task: TodoTask)
     suspend fun toggleTask(taskId: String)
     suspend fun deleteTask(taskId: String)
+    suspend fun clearAllTasks()
 }
 
 class DefaultDataRepository : DataRepository {
@@ -19,31 +20,36 @@ class DefaultDataRepository : DataRepository {
                 id = "1",
                 title = "Install Android Studio & JDK 20",
                 category = "Setup",
-                isCompleted = true
+                isCompleted = true,
+                priority = TaskPriority.HIGH
             ),
             TodoTask(
                 id = "2",
                 title = "Configure Git & Initialize Repo",
                 category = "Setup",
-                isCompleted = true
+                isCompleted = true,
+                priority = TaskPriority.HIGH
             ),
             TodoTask(
                 id = "3",
                 title = "Create TaskFlow Todo App",
                 category = "App Dev",
-                isCompleted = false
+                isCompleted = false,
+                priority = TaskPriority.HIGH
             ),
             TodoTask(
                 id = "4",
                 title = "Review Android Lifecycle & Layouts",
                 category = "Study",
-                isCompleted = false
+                isCompleted = false,
+                priority = TaskPriority.MEDIUM
             ),
             TodoTask(
                 id = "5",
                 title = "Verify Build & Push to GitHub",
                 category = "App Dev",
-                isCompleted = false
+                isCompleted = false,
+                priority = TaskPriority.LOW
             )
         )
     )
@@ -66,5 +72,9 @@ class DefaultDataRepository : DataRepository {
         _tasks.update { list ->
             list.filter { it.id != taskId }
         }
+    }
+
+    override suspend fun clearAllTasks() {
+        _tasks.update { emptyList() }
     }
 }
