@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.androidbasicstutorial.data.DataRepository
 import com.example.androidbasicstutorial.data.TaskPriority
 import com.example.androidbasicstutorial.data.TodoTask
+import com.example.androidbasicstutorial.data.UserRepository
+import com.example.androidbasicstutorial.data.UserSession
 import com.example.androidbasicstutorial.theme.ThemePalette
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,7 +29,10 @@ sealed interface NetworkSyncState {
     data class Error(val message: String) : NetworkSyncState
 }
 
-class MainScreenViewModel(private val dataRepository: DataRepository) : ViewModel() {
+class MainScreenViewModel(
+    private val dataRepository: DataRepository,
+    private val userRepository: UserRepository
+) : ViewModel() {
 
     private val _selectedCategory = MutableStateFlow("All")
     val selectedCategory = _selectedCategory.asStateFlow()
@@ -46,6 +51,12 @@ class MainScreenViewModel(private val dataRepository: DataRepository) : ViewMode
 
     private val _syncState = MutableStateFlow<NetworkSyncState>(NetworkSyncState.Idle)
     val syncState = _syncState.asStateFlow()
+
+    val userSession: StateFlow<UserSession> = userRepository.userSession.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = UserSession()
+    )
 
     val uiState: StateFlow<MainScreenUiState> = combine(
         dataRepository.tasks,
@@ -131,6 +142,18 @@ class MainScreenViewModel(private val dataRepository: DataRepository) : ViewMode
     fun clearAllTasks() {
         viewModelScope.launch {
             dataRepository.clearAllTasks()
+        }
+    }
+
+    fun login(username: String, email: String) {
+        viewModelScope.launch {
+            userRepository.login(username, email)
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            userRepository.logout()
         }
     }
 
