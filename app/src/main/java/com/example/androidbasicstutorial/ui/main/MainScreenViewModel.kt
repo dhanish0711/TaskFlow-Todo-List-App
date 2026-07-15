@@ -20,6 +20,13 @@ enum class TaskSortOption {
     DATE, TITLE, PRIORITY
 }
 
+sealed interface NetworkSyncState {
+    object Idle : NetworkSyncState
+    object Syncing : NetworkSyncState
+    object Success : NetworkSyncState
+    data class Error(val message: String) : NetworkSyncState
+}
+
 class MainScreenViewModel(private val dataRepository: DataRepository) : ViewModel() {
 
     private val _selectedCategory = MutableStateFlow("All")
@@ -37,25 +44,25 @@ class MainScreenViewModel(private val dataRepository: DataRepository) : ViewMode
     private val _isDarkTheme = MutableStateFlow(true)
     val isDarkTheme = _isDarkTheme.asStateFlow()
 
+    private val _syncState = MutableStateFlow<NetworkSyncState>(NetworkSyncState.Idle)
+    val syncState = _syncState.asStateFlow()
+
     val uiState: StateFlow<MainScreenUiState> = combine(
         dataRepository.tasks,
         _selectedCategory,
         _searchQuery,
         _sortBy
     ) { tasks, category, query, sort ->
-        // 1. Filter by category
         var filteredTasks = if (category == "All") {
             tasks
         } else {
             tasks.filter { it.category.equals(category, ignoreCase = true) }
         }
 
-        // 2. Filter by search query
         if (query.isNotBlank()) {
             filteredTasks = filteredTasks.filter { it.title.contains(query, ignoreCase = true) }
         }
 
-        // 3. Sort
         filteredTasks = when (sort) {
             TaskSortOption.DATE -> filteredTasks.sortedByDescending { it.createdAt }
             TaskSortOption.TITLE -> filteredTasks.sortedBy { it.title.lowercase() }
@@ -92,14 +99,20 @@ class MainScreenViewModel(private val dataRepository: DataRepository) : ViewMode
     fun addTask(title: String, category: String, priority: TaskPriority) {
         if (title.isBlank() || category.isBlank()) return
         viewModelScope.launch {
-            dataRepository.addTask(
-                TodoTask(
-                    id = UUID.randomUUID().toString(),
-                    title = title.trim(),
-                    category = category.trim(),
-                    priority = priority
-                )
+            val newTask = TodoTask(
+                id = UUID.randomUUID().toString(),
+                title = title.trim(),
+                category = category.trim(),
+                priority = priority
             )
+            dataRepository.addTask(newTask)
+
+            // Background mock API POST upload call
+            try {
+                dataRepository.uploadTask(newTask)
+            } catch (e: Exception) {
+                // local DB update succeeded, API upload failed/ignored in offline mode
+            }
         }
     }
 
@@ -119,6 +132,24 @@ class MainScreenViewModel(private val dataRepository: DataRepository) : ViewMode
         viewModelScope.launch {
             dataRepository.clearAllTasks()
         }
+    }
+
+    fun syncWithCloud() {
+        viewModelScope.launch {
+            _syncState.value = NetworkSyncState.Syncing
+            try {
+                dataRepository.syncRemoteTasks()
+                _syncState.value = NetworkSyncState.Success
+            } catch (e: Exception) {
+                _syncState.value = NetworkSyncState.Error(
+                    e.localizedMessage ?: "A network connection error occurred."
+                )
+            }
+        }
+    }
+
+    fun resetSyncState() {
+        _syncState.value = NetworkSyncState.Idle
     }
 
     fun setCategoryFilter(category: String) {
