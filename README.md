@@ -1,5 +1,12 @@
 # TaskFlow - Android Studio Internship Portfolio
 
+[![Kotlin](https://img.shields.io/badge/Kotlin-0095D5?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
+[![Jetpack Compose](https://img.shields.io/badge/Compose-3DDC84?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/jetpack/compose)
+[![Retrofit](https://img.shields.io/badge/Retrofit-HTTP-blue?style=flat-square)](https://square.github.io/retrofit/)
+[![GitHub Actions CI/CD](https://img.shields.io/badge/CI%2FCD-Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/features/actions)
+
+Developed and maintained by **Dhanish Ladwani** ([@dhanish0711](https://github.com/dhanish0711/)).
+
 This repository contains the complete projects, source files, test suites, CI/CD pipelines, and detailed documentation completed during the App Development Internship.
 
 ---
@@ -61,6 +68,21 @@ You can compile and test the app using Gradle commands from the root directory:
 - **Search & Sort Pipeline**: Instantly search task title strings and sort list contents by Priority levels, alphabetical Order, or date Created.
 - **Mock REST API Syncing**: Pulls task elements from [JSONPlaceholder API](https://jsonplaceholder.typicode.com/) and maps them uniquely to local data lists with full network state handlers and Snackbar notification alerts.
 - **User Authentication**: Styled Login screen with regex-based active email validation and file-based session persistence.
+
+---
+
+## 🏗️ Architecture Design
+
+The app's components follow the Model-View-ViewModel (MVVM) design architecture:
+
+```mermaid
+graph TD
+    UI[Compose UI: MainScreen] <-->|Observe state & Trigger actions| VM[MainScreenViewModel]
+    VM <-->|Tasks Flow / Sync| Repo[DataRepository]
+    VM <-->|Auth Flow / Credentials| AuthRepo[UserRepository]
+    Repo <-->|Network Request| API[TodoApiService: JSONPlaceholder REST API]
+    AuthRepo <-->|Local Read/Write| JSON[user_session.json File Store]
+```
 
 ---
 
