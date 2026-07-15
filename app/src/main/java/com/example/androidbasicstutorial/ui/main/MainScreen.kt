@@ -49,12 +49,30 @@ fun MainScreen(
     val themePalette by viewModel.themePalette.collectAsState()
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val syncState by viewModel.syncState.collectAsState()
 
     var currentTab by rememberSaveable { mutableStateOf(TabItem.Dashboard) }
     var showAddDialog by remember { mutableStateOf(false) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(syncState) {
+        when (val state = syncState) {
+            is NetworkSyncState.Success -> {
+                snackbarHostState.showSnackbar("Sync successful! Mapped tasks from API.")
+                viewModel.resetSyncState()
+            }
+            is NetworkSyncState.Error -> {
+                snackbarHostState.showSnackbar("Sync failed: ${state.message}")
+                viewModel.resetSyncState()
+            }
+            else -> {}
+        }
+    }
+
     AndroidBasicsTutorialTheme(darkTheme = isDarkTheme, palette = themePalette) {
         Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
@@ -118,6 +136,8 @@ fun MainScreen(
                         when (currentTab) {
                             TabItem.Dashboard -> DashboardTabScreen(
                                 state = state,
+                                syncState = syncState,
+                                onSyncClick = { viewModel.syncWithCloud() },
                                 onTabSwitch = { currentTab = it }
                             )
                             TabItem.Tasks -> TasksTabScreen(
@@ -151,6 +171,8 @@ fun MainScreen(
 @Composable
 fun DashboardTabScreen(
     state: MainScreenUiState.Success,
+    syncState: NetworkSyncState,
+    onSyncClick: () -> Unit,
     onTabSwitch: (TabItem) -> Unit
 ) {
     LazyColumn(
@@ -159,19 +181,54 @@ fun DashboardTabScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Welcome Header with Cloud Sync Button
         item {
-            Text(
-                text = "Welcome Back! 👋",
-                fontWeight = FontWeight.Bold,
-                fontSize = 28.sp,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Let's organize your task flow today.",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Welcome Back! 👋",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 28.sp,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Let's organize your task flow today.",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                    )
+                }
+
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    if (syncState == NetworkSyncState.Syncing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        IconButton(
+                            onClick = onSyncClick,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Sync from Cloud",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         // Circular Gauge Card
