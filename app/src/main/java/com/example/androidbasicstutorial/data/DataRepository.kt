@@ -1,9 +1,12 @@
 package com.example.androidbasicstutorial.data
 
+import com.example.androidbasicstutorial.data.api.ApiTodo
+import com.example.androidbasicstutorial.data.api.RetrofitInstance
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlin.random.Random
 
 interface DataRepository {
     val tasks: Flow<List<TodoTask>>
@@ -11,6 +14,8 @@ interface DataRepository {
     suspend fun toggleTask(taskId: String)
     suspend fun deleteTask(taskId: String)
     suspend fun clearAllTasks()
+    suspend fun syncRemoteTasks()
+    suspend fun uploadTask(task: TodoTask)
 }
 
 class DefaultDataRepository : DataRepository {
@@ -76,5 +81,33 @@ class DefaultDataRepository : DataRepository {
 
     override suspend fun clearAllTasks() {
         _tasks.update { emptyList() }
+    }
+
+    override suspend fun syncRemoteTasks() {
+        val remoteTodos = RetrofitInstance.api.getTodos().take(8)
+        _tasks.update { localList ->
+            val mappedTasks = remoteTodos.map { apiTodo ->
+                TodoTask(
+                    id = "remote_${apiTodo.id}",
+                    title = apiTodo.title,
+                    category = "Cloud",
+                    isCompleted = apiTodo.completed,
+                    priority = TaskPriority.MEDIUM
+                )
+            }
+            val existingIds = localList.map { it.id }.toSet()
+            val newUniqueTasks = mappedTasks.filter { it.id !in existingIds }
+            localList + newUniqueTasks
+        }
+    }
+
+    override suspend fun uploadTask(task: TodoTask) {
+        val apiTodo = ApiTodo(
+            userId = 1,
+            id = Random.nextInt(1000, 9999),
+            title = task.title,
+            completed = task.isCompleted
+        )
+        RetrofitInstance.api.createTodo(apiTodo)
     }
 }
