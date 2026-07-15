@@ -33,6 +33,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.androidbasicstutorial.data.TaskPriority
 import com.example.androidbasicstutorial.data.TodoTask
+import com.example.androidbasicstutorial.data.UserSession
 import com.example.androidbasicstutorial.theme.AndroidBasicsTutorialTheme
 import com.example.androidbasicstutorial.theme.ThemePalette
 
@@ -50,6 +51,7 @@ fun MainScreen(
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val syncState by viewModel.syncState.collectAsState()
+    val userSession by viewModel.userSession.collectAsState()
 
     var currentTab by rememberSaveable { mutableStateOf(TabItem.Dashboard) }
     var showAddDialog by remember { mutableStateOf(false) }
@@ -71,85 +73,91 @@ fun MainScreen(
     }
 
     AndroidBasicsTutorialTheme(darkTheme = isDarkTheme, palette = themePalette) {
-        Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-            bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                ) {
-                    NavigationBarItem(
-                        selected = currentTab == TabItem.Dashboard,
-                        onClick = { currentTab = TabItem.Dashboard },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
-                        label = { Text("Dashboard") }
-                    )
-                    NavigationBarItem(
-                        selected = currentTab == TabItem.Tasks,
-                        onClick = { currentTab = TabItem.Tasks },
-                        icon = { Icon(Icons.Default.List, contentDescription = "Tasks") },
-                        label = { Text("Tasks") }
-                    )
-                    NavigationBarItem(
-                        selected = currentTab == TabItem.Settings,
-                        onClick = { currentTab = TabItem.Settings },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                        label = { Text("Settings") }
-                    )
-                }
-            },
-            floatingActionButton = {
-                if (currentTab == TabItem.Tasks) {
-                    FloatingActionButton(
-                        onClick = { showAddDialog = true },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        shape = CircleShape
+        if (!userSession.isLoggedIn) {
+            LoginPortal(onLogin = { username, email -> viewModel.login(username, email) })
+        } else {
+            Scaffold(
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+                bottomBar = {
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Task")
-                    }
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.background,
-            modifier = modifier.fillMaxSize()
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                when (val state = uiState) {
-                    is MainScreenUiState.Loading -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center),
-                            color = MaterialTheme.colorScheme.primary
+                        NavigationBarItem(
+                            selected = currentTab == TabItem.Dashboard,
+                            onClick = { currentTab = TabItem.Dashboard },
+                            icon = { Icon(Icons.Default.Home, contentDescription = "Dashboard") },
+                            label = { Text("Dashboard") }
+                        )
+                        NavigationBarItem(
+                            selected = currentTab == TabItem.Tasks,
+                            onClick = { currentTab = TabItem.Tasks },
+                            icon = { Icon(Icons.Default.List, contentDescription = "Tasks") },
+                            label = { Text("Tasks") }
+                        )
+                        NavigationBarItem(
+                            selected = currentTab == TabItem.Settings,
+                            onClick = { currentTab = TabItem.Settings },
+                            icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                            label = { Text("Settings") }
                         )
                     }
-                    is MainScreenUiState.Error -> {
-                        Text(
-                            text = "Error: ${state.throwable.localizedMessage}",
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
+                },
+                floatingActionButton = {
+                    if (currentTab == TabItem.Tasks) {
+                        FloatingActionButton(
+                            onClick = { showAddDialog = true },
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            shape = CircleShape
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add Task")
+                        }
                     }
-                    is MainScreenUiState.Success -> {
-                        when (currentTab) {
-                            TabItem.Dashboard -> DashboardTabScreen(
-                                state = state,
-                                syncState = syncState,
-                                onSyncClick = { viewModel.syncWithCloud() },
-                                onTabSwitch = { currentTab = it }
+                },
+                containerColor = MaterialTheme.colorScheme.background,
+                modifier = modifier.fillMaxSize()
+            ) { paddingValues ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    when (val state = uiState) {
+                        is MainScreenUiState.Loading -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.align(Alignment.Center),
+                                color = MaterialTheme.colorScheme.primary
                             )
-                            TabItem.Tasks -> TasksTabScreen(
-                                state = state,
-                                viewModel = viewModel,
-                                onToggle = { viewModel.toggleTask(it.id) },
-                                onDelete = { viewModel.deleteTask(it.id) }
+                        }
+                        is MainScreenUiState.Error -> {
+                            Text(
+                                text = "Error: ${state.throwable.localizedMessage}",
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.align(Alignment.Center)
                             )
-                            TabItem.Settings -> SettingsTabScreen(
-                                viewModel = viewModel,
-                                state = state
-                            )
+                        }
+                        is MainScreenUiState.Success -> {
+                            when (currentTab) {
+                                TabItem.Dashboard -> DashboardTabScreen(
+                                    state = state,
+                                    userSession = userSession,
+                                    syncState = syncState,
+                                    onSyncClick = { viewModel.syncWithCloud() },
+                                    onTabSwitch = { currentTab = it }
+                                )
+                                TabItem.Tasks -> TasksTabScreen(
+                                    state = state,
+                                    viewModel = viewModel,
+                                    onToggle = { viewModel.toggleTask(it.id) },
+                                    onDelete = { viewModel.deleteTask(it.id) }
+                                )
+                                TabItem.Settings -> SettingsTabScreen(
+                                    viewModel = viewModel,
+                                    state = state,
+                                    userSession = userSession
+                                )
+                            }
                         }
                     }
                 }
@@ -169,8 +177,122 @@ fun MainScreen(
 }
 
 @Composable
+fun LoginPortal(
+    onLogin: (String, String) -> Unit
+) {
+    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var emailError by remember { mutableStateOf<String?>(null) }
+
+    val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header Logo
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Logo",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+
+                Text(
+                    text = "Welcome to TaskFlow",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Text(
+                    text = "Sync and structure your daily activities",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Person") },
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = {
+                        email = it
+                        emailError = if (it.isBlank() || emailRegex.matches(it)) null else "Invalid email format"
+                    },
+                    label = { Text("Email Address") },
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") },
+                    isError = emailError != null,
+                    supportingText = {
+                        if (emailError != null) {
+                            Text(text = emailError!!, color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        if (username.isNotBlank() && email.isNotBlank() && emailError == null) {
+                            onLogin(username.trim(), email.trim())
+                        }
+                    },
+                    enabled = username.isNotBlank() && email.isNotBlank() && emailError == null,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Text("Sign In", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun DashboardTabScreen(
     state: MainScreenUiState.Success,
+    userSession: UserSession,
     syncState: NetworkSyncState,
     onSyncClick: () -> Unit,
     onTabSwitch: (TabItem) -> Unit
@@ -190,7 +312,7 @@ fun DashboardTabScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Welcome Back! 👋",
+                        text = "Hi, ${userSession.username}! 👋",
                         fontWeight = FontWeight.Bold,
                         fontSize = 28.sp,
                         color = MaterialTheme.colorScheme.onBackground
@@ -687,7 +809,8 @@ fun PriorityTag(priority: TaskPriority) {
 @Composable
 fun SettingsTabScreen(
     viewModel: MainScreenViewModel,
-    state: MainScreenUiState.Success
+    state: MainScreenUiState.Success,
+    userSession: UserSession
 ) {
     val themePalette by viewModel.themePalette.collectAsState()
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
@@ -704,6 +827,64 @@ fun SettingsTabScreen(
                 fontWeight = FontWeight.Bold,
                 fontSize = 24.sp
             )
+        }
+
+        // Active Profile Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = userSession.username.take(1).uppercase(),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = userSession.username,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Text(
+                            text = userSession.email,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        )
+                    }
+                    Button(
+                        onClick = { viewModel.logout() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text("Log Out", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
 
         // Dark Mode Toggle
