@@ -1,19 +1,44 @@
-# Task 4: API Integration and Networking
+# Task 4: Advanced Features and Testing (Days 28-36)
 
 ## Objective
-To retrieve and process data from remote APIs using Retrofit or Ktor Client, handling network state, parsing JSON payloads, and displaying remote content in the UI.
+To implement advanced features (user session authentication, profile layouts, and email validations) and ensure application stability through unit testing.
 
 ---
 
-## Planned Activities
-- **Retrofit Setup**: Configuring HTTP clients, serializers (like kotlinx.serialization), and API interfaces.
-- **Async Operations**: Running background network calls safely using Kotlin Coroutines.
-- **State Handling**: Managing Loading, Success, and Error states in UI components gracefully.
-- **Caching**: Implementing simple offline-first support by caching network payloads locally via Room.
+## Accomplished Activities
+
+### 🔒 1. User Session Authentication & Persistence
+- Created [UserRepository.kt](file:///e:/App%20Development/app/src/main/java/com/example/androidbasicstutorial/data/UserRepository.kt):
+  - Defines serializable `UserSession` model.
+  - Implements `FileUserRepository` which reads and writes user sessions to a local file (`user_session.json`) in the app's files directory.
+- Configured repository constructor dependency injections in [MainActivity.kt](file:///e:/App%20Development/app/src/main/java/com/example/androidbasicstutorial/MainActivity.kt) and [Navigation.kt](file:///e:/App%20Development/app/src/main/java/com/example/androidbasicstutorial/Navigation.kt).
+
+### 🎨 2. Login Portal UI & Settings Profile Card
+- Created a fully interactive, styled **Login Portal** in [MainScreen.kt](file:///e:/App%20Development/app/src/main/java/com/example/androidbasicstutorial/ui/main/MainScreen.kt):
+  - Text fields for Username and Email input.
+  - Regex-based format validator for active email pattern helper messages.
+  - Keeps the user locked in the Login screen until they authenticate.
+- Added personalized Welcome Messages in the Dashboard header.
+- Added a **Profile Card** in Settings showing username and email with a red **"Log Out"** button to discard active sessions.
+
+### 🧪 3. Comprehensive Unit Testing
+- Created [UserRepositoryTest.kt](file:///e:/App%20Development/app/src/test/java/com/example/androidbasicstutorial/data/UserRepositoryTest.kt):
+  - Validates default sessions.
+  - Tests user log-in persistence.
+  - Tests log-out session clearing.
+- Overhauled [MainScreenViewModelTest.kt](file:///e:/App%20Development/app/src/test/java/com/example/androidbasicstutorial/ui/main/MainScreenViewModelTest.kt):
+  - Fakes repositories using custom test implementations to run unit tests on host JVM with zero network dependencies.
+  - Validates task creation updates flow states.
+  - Validates text search query filtering.
+  - Validates priority sorting orders (High -> Medium -> Low).
+  - Validates user session flows update.
 
 ---
 
-## Deliverables
-- Dynamic app features driven by REST API backend responses.
-- Error handling UI states.
-- Task documentation update.
+## Verification Logs
+We executed the JUnit test suites in local environment:
+```powershell
+.\gradlew.bat testDebugUnitTest --no-daemon
+```
+- **Result**: `BUILD SUCCESSFUL` (All 8 tests completed, 8 tests passed successfully!).
+- **Reports**: Build test summaries generated at `app/build/reports/tests/testDebugUnitTest/index.html`.
